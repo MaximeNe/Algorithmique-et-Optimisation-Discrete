@@ -1,0 +1,275 @@
+---
+title: "Algorithmique et optimisation discrète"
+subtitle: "DM 4MMAOD6 2021-2022"
+author: "Maxime NEMO"
+header-includes: |
+  \usepackage{algorithm,algpseudocode}
+  \usepackage{amsmath}
+  \usepackage{amsfonts}
+  \usepackage{amssymb}
+  \usepackage{listings}
+  
+  \renewcommand{\algorithmicrequire}{\textbf{Input:}}
+  \renewcommand{\algorithmicensure}{\textbf{Output:}}
+output:
+  pdf_document:
+    keep_tex: true
+    latex_engine: lualatex
+    template: ./eisvogel.tex
+    toc: true
+titlepage: true
+titlepage-rule-color: "0039A6"
+titlepage-text-color: "000000"
+titlepage-rule-height: 2
+toc-own-page: true
+---
+
+    
+# Analyse des défauts de cache
+    
+
+Le comportement d'un algorithme dépend très fortement de son implémentation. En effet, chaque choix d'implémentation fera que le programme a un coût d'exécution différent. Le coût d'un programme peut être mesuré grâce au nombre d'opérations (le travail), ou bien grâce à l'espace mémoie qu'il utilise, ou bien encore par sa localité (le nombre de défauts de cache). En effet, les données utiles pour son exécutions sont rapide à accéder lorsqu'elles sont présentes dans le cache, mais bien moins rapide lorsque celles-ci sont absentes.  
+Le modèle qu'on va retenir pour le cache est le modèle LRU (Least Recently Used). Cette politique a au plus 2 fois plus de défauts de cache qu'une politique optimale. On va utiliser le modèle CO pour l'analyse des défauts de cache. Celui ci consiste à supposer qu'on a un cache de taille Z, utilisant des blocs de taille L et avec une politique LRU.  
+Le but sera alors de trouver le nombre de défauts de cache, de concevoir un algorithme qui utilise les valeurs de Z et de L pour faire moins de défauts, et puis enfin de construire un programme qui ne fait pas trop de défauts, quelles que soient les valeurs Z et L, qui sera alors bon sur toutes les machines.  
+&nbsp;  
+
+*Exemple 1:*  
+Prenons l'algorithme naïf suivant, que nous allons analyser et améliorer petit à petit.  
+
+
+\begin{algorithm}[H]
+\caption{Example 1}
+\begin{algorithmic}[1]
+\Require{$A$ and $B$ two matrix of size $n \times n$} 
+\Ensure{$C$ a matrix of size $n \times n$}
+\Statex
+ 
+  \For{$i=0; i<n; i++$}
+    \For{$j=0; j<n; j++$}
+      \State $c_{i,j} \gets a_{i,j} \times b_{j,i}$
+    \EndFor
+  \EndFor
+\end{algorithmic}
+\end{algorithm}
+
+Calculons le nombre de défauts de cache dans le cadre de notre modèle CO.  
+Pour cela, on va faire plusieurs hypothèses :  
+
+* Si $Z$ est très grand ($Z = \infty$) :  
+Alors on va faire $\frac{n \times n}{L}$ défauts sur A, $\frac{n \times n}{L}$ défauts sur B, $\frac{n \times n}{L}$ défauts sur C  
+On fait alors $\frac{3n^2}{L}$ défauts de cache
+
+* Si $Z$ est très petit, alors, en notant $Q$ le nombre de défauts de cache,    
+$Q(n, L, Z) = \underbrace{ \frac{n^2}{L}}_{Sur A} + \underbrace{\frac{n^2}{L}}_{Sur C} + \underbrace{n^2}_{sur B} \approx n^2$.  
+
+On remarque alors que sous les deux hypothèses précédentes, le résultat n'est pas le même, cela signifie que notre algorithme n'est pas optimisé.
+
+&nbsp;  
+L'organisation des données a un effet sur les performances. En effet, l'algorithme précédent lit les éléments de $A$ de manière contiguë et écrit les éléments de $C$ de manière contiguë, c'est-à-dire selon le sens du stockage, mais ce n'est pas le cas pour la lecture des éléments de $B$. Il s'agit ici d'un problème de la localité spatiale. Celle-ci n'étant pas bonne pour $B$, il va falloir régler cela. Il existe aussi des problèmes de localité temporelle, c'est-à-dire que l'on accède aux données proches dans la mémoire de façon espacée dans le temps.  La solution est de faire un parcours selon le sens de stockage autant que possible.  
+Une première optimisation serait de transformer notre algorithme naïf en algorithme cache-aware. C'est-à-dire un programme qui est optimal en terme de défauts de cache mais qui utilise les valeurs de Z et de L pour cela.  
+On va utiliser des techniques de blocking. Cela consiste en l'amélioration de la localité en effectuant un parcours des matrices par blocs qui tiennent dans le cache.  
+
+
+On va alors travailler par bloc de taille $\alpha \times \beta$  
+**Méthode générale :**  
+Supposons $\alpha$ et $\beta$ entiers tels que les calculs effectués dans le bloc se fassent sans que le cache soit plein si il était initialement vide.  
+Pour les calculs suivant, on suppose que le cache est toujours alligné pour simplifier.  
+On a alors #défaut de cache par bloc = $\underbrace{ \beta\lceil \frac{\alpha}{L}\rceil}_{sur A}+ \underbrace{\beta\lceil \frac{\alpha}{L}\rceil}_{sur C} + \underbrace{ \alpha\lceil \frac{\beta}{L}\rceil}_{sur B}$  
+On a donc finalement : $Q(n,L,Z) \approx \frac{n}{\alpha} \times \frac{n}{\beta} \times \frac{3 \alpha\beta}{L} = \Theta(\frac{n^2}{L})$ qui est bien l'optimal que l'on avait trouvé (quand $Z = \infty$)
+On peut aussi en déduire que $\alpha = \beta \approx \sqrt{\frac{Z}{3}}$, avec $\alpha = \beta \leq \sqrt{\frac{Z}{3}}$  
+
+\begin{algorithm}[H]
+\caption{Example 1 - Cache-Aware}
+\begin{algorithmic}[2]
+\Require{$A$ and $B$ two matrix of size $n \times n$} 
+\Ensure{$C$ a matrix of size $n \times n$}
+\Statex
+ 
+  \For{$I=0; I<n; I+=\alpha$}
+    \State int $i_{max} \gets \min(I+\alpha, m)$
+    \For{$J=0; J<n; J+=\alpha$}
+      \State int $j_{max} \gets \min(J+\alpha, m)$
+      \For{$i=I; i<i_{max}; i++$}
+        \For{$j=J; j<j_{max}; j++$}
+        \State $c_{i,j} \gets a_{i,j} \times b_{j,i}$
+        \EndFor
+      \EndFor
+    \EndFor
+  \EndFor
+\end{algorithmic}
+\end{algorithm}
+
+On a trouvé un algorithme qui, asymptotiquement, est toujours optimal, mais celui-ci dépend de Z et de L, et donc un seul et même algorithme ne peux pas etre optimal sur toutes les machines puisque Z et L seront différents.
+La prochaine étape est alors de créer un algorithme cache-oblivious.  
+**Méthode générale :**  
+Découper récursivement en blocs plus petits jusqu'à ce que les sous-problèmes rentrent dans le cache.  
+
+\begin{algorithm}[H]
+\caption{Example 1 - Cache-Oblivious}
+\begin{algorithmic}[3]
+\Require{$A$ and $B$ two matrix of size $n \times n$, $T$ a threshold, $a$, $b$ two indexes initially = 0, $c$, $d$ two indexes initially = $n$} 
+\Ensure{$C$ a matrix of size $n \times n$}
+\Statex
+\Function{$f_{rec}$}{$a,b,c,d$}
+  \State $NbLine \gets b-a$
+  \State $NbCol \gets d-c$
+  \If {$NbLine < T$ and $NbCol < T$}
+    \For{$i=a; i<b; i++$}
+      \For{$j=c; j<d; j++$}
+        \State $c_{i,j} \gets a_{i,j} \times b_{j,i}$
+      \EndFor
+    \EndFor
+  \Else
+    \If { $NbLine > NbCol$}
+      \State $f_{rec}(a+NbLine/2, b, c, d)$
+      \State $f_{rec}(a, b+NbLine/2, c, d)$
+    \Else
+      \State $f_{rec}(a, b, c+NbCol/2, d)$
+      \State $f_{rec}(a, b, c, d+NbCol/2)$
+    \EndIf
+  \EndIf
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+
+
+&nbsp;  
+
+# Cas des algorithmes récursifs
+
+
+La programmation récursive peut amener à des **calculs redondants** qui les rendent très très mauvais niveau performance. Il est alors possible d'éliminer les redondances en suivant la méthode suivante:  
+
+* Trouver les calculs redondants en analysant les dépendances entre instructions avec un graphe d'appel par exemple.  
+* Éliminer ces calculs grâce à :
+  * Soit de la mémoïsation, c'est-à-dire mémoriser le résultat d'un appel pour pouvoir s'en servir plus tard si on a encore besoin du résultat.
+  * Soit passer à de la programmation itérative avec ordonnancement topologique.  
+  
+*Exemple 2 :*
+Soit la fonction $f$ définie ci-dessous
+
+\begin{algorithm}[H]
+\caption{Example 2}
+\begin{algorithmic}[4]
+\Require{int $x$} 
+\Ensure{$res$ the result}
+\Function{$f$}{$x$}
+  \Statex
+    \If{ $x = 0$}
+      \State Return 1
+    \EndIf
+    \State $res = 0$
+    \For{$i=0; i<x; i++$}
+      \State $res = res + f(i)$
+    \EndFor
+  \State Return $res$
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+On remarque qu'il y a beaucoup de calculs redondants (tous les $f(i)$ avec $i<x$).  
+La première amélioration est d'utiliser de la mémoïsation. On applique la méthode générale de mémoïsation, c'est-à-dire de regarder si le calcul n'aurait pas déjà été fait précédement.  
+
+\begin{algorithm}[H]
+\caption{Example 2 - memorization}
+\begin{algorithmic}[5]
+\Require{int $x$} 
+\Ensure{$res$ the result}
+\Statex
+\State $T$ = [] a hashmap
+  \Function{$f$}{$x$}
+    \If{ $x = 0$}
+      \State Return 1
+    \EndIf
+    \State $res = 0$
+    \For{$i=0; i<x; i++$}
+      \If key $i$ in $T$
+        \State $val = T[i]$
+      \Else
+        \State $val = f(i)$
+      \EndIf
+      \State $res = res + val$
+    \EndFor
+  \State Return $res$
+  \EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+&nbsp;  
+
+En faisant une analyse des dépendances entre instructions avec un graphe d'appels de $f$, on se rend compte que $f(x)$ dépends seulement de $f(i), i<x$. On peut alors créer une version itérative de notre algorithme en calculant les instructions qui ne dépendent en premier de rien, puis les instructions qui dépendent de rien des des instructions qu'on vient de calculer etc...  
+
+On obtient alors l'algorithme suivant :  
+
+\begin{algorithm}[H]
+\caption{Example 2 - iterative}
+\begin{algorithmic}[6]
+\Require{int $x$} 
+\Ensure{$res$ the result}
+\Statex
+  \Function{$f$}{$x$}
+    \State $T$ = [x]
+    \State $T[0] = 1$
+    \For{$i=1; i<=x; i++$}
+      \State $s=0$
+      \For{$j = 0; j<i; j++$}
+        \State $s = s + T[j]$
+      \EndFor
+      \State $T[i] = s$
+    \EndFor
+  \EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+On a appliqué simplement la méthode, il est évident que dans notre cas, l'algorithme peut encore être simplifié, mais pas au niveau de la redondance des calculs de $f(i)$. En effet, chaque $f(i)$ est calculé une et une seule fois.  
+
+&nbsp;  
+&nbsp;  
+
+  
+# Programmation dynamique
+Pour résoudre des problèmes plus complexes, il est parfois pratique d'utiliser de la programmation dynamique. On peut modéliser un problème par une équation de Bellman lorsque :
+
+* Une solution optimale peut s'exprimer de façon récursive  
+* Et la formule récursive réduit le problème général en sous-problèmes dont on va chercher la solution optimale.  
+
+Une fois l'équation de Bellman trouvée, on peut créer un programme récursif utilisant cette équation. On peut alors ensuite utiliser les méthodes d'optimisation des programmes récursifs évoqués précédemment.  
+
+&nbsp;  
+&nbsp;  
+
+*Exemple 3: (inspiré d'un énoncé de l'ENS Lyon)*  
+On veut construire une tour la plus haute possible à partir de différentes briques. On dispose
+de n types de briques et d’un nombre illimité de briques de chaque type. Chaque brique de type $i$
+a une longueur $x_i$ une largeur $y_i$ et une hauteur $z_i$. Chaque brique doit être posée sur la base $x,y$
+Dans la construction de la tour, une brique ne peut être placée au dessus d’une autre que si
+les deux dimensions de la base de la brique du dessus sont strictement inférieures aux dimensions
+de la rangée de briques du dessous  
+
+*Solution :*  
+Entrées :  
+$L_{base}$ la longueur de la base ; $l_{base}$ la largeur de la base ; les types de briques  
+Equation de Bellman :
+
+Si il existe une brique compatible :  
+$h_{max}(L_{base}, l_{base}) = \underset{\textrm{type } i ; y_i < l_{base} ; x_i < L_{base}} {\max}( z_i + h_{max}( (L_{base}//x_i ) \times x_i, y_i)$  
+$h_{max}(L_{base}, l_{base}) = 0$  si aucune brique ne respecte les conditions du max
+
+&nbsp;  
+
+On peut alors creer le code fournis en annexe 1.  
+
+
+
+
+
+# Annexe 1
+
+\lstinputlisting[language=Python]{exemple3.py}
+
+
+
+
+
+
