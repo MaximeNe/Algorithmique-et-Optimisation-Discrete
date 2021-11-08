@@ -1,6 +1,7 @@
 ---
 title: "Algorithmique et optimisation discrète"
 subtitle: "DM 4MMAOD6 2021-2022"
+date: "`r format(Sys.time(), '%d %B %Y')`"
 author: "Maxime NEMO"
 header-includes: |
   \usepackage{algorithm,algpseudocode}
@@ -68,83 +69,43 @@ On remarque alors que sous les deux hypothèses précédentes, le résultat n'es
 L'organisation des données a un effet sur les performances. En effet, l'algorithme précédent lit les éléments de $A$ de manière contiguë et écrit les éléments de $C$ de manière contiguë, c'est-à-dire selon le sens du stockage, mais ce n'est pas le cas pour la lecture des éléments de $B$. Il s'agit ici d'un problème de la localité spatiale. Celle-ci n'étant pas bonne pour $B$, il va falloir régler cela. Il existe aussi des problèmes de localité temporelle, c'est-à-dire que l'on accède aux données proches dans la mémoire de façon espacée dans le temps.  La solution est de faire un parcours selon le sens de stockage autant que possible.  
 Une première optimisation serait de transformer notre algorithme naïf en algorithme cache-aware. C'est-à-dire un programme qui est optimal en terme de défauts de cache mais qui utilise les valeurs de Z et de L pour cela.  
 On va utiliser des techniques de blocking. Cela consiste en l'amélioration de la localité en effectuant un parcours des matrices par blocs qui tiennent dans le cache.  
+On se limite volontairement au blocs rectangulaire. On pourrait très bien immaginer des blocs de formes plus complexes.  
 
 
 On va alors travailler par bloc de taille $\alpha \times \beta$  
-**Méthode générale :**  
+**Méthode générale : cache-aware**  
 Supposons $\alpha$ et $\beta$ entiers tels que les calculs effectués dans le bloc se fassent sans que le cache soit plein si il était initialement vide.  
 Pour les calculs suivant, on suppose que le cache est toujours alligné pour simplifier.  
+On va calculer le nombre de défaut de cache par bloc, puis le multiplié par le nombre de bloc que l'on va devoir explorer. Si cette valeur est assymptofiquement la même que  l'optimal qu'on avait trouvé avec l'algorithme naïf, alors on a produit un algorithme cache-aware.  
+
+
+**Application :**
 On a alors #défaut de cache par bloc = $\underbrace{ \beta\lceil \frac{\alpha}{L}\rceil}_{sur A}+ \underbrace{\beta\lceil \frac{\alpha}{L}\rceil}_{sur C} + \underbrace{ \alpha\lceil \frac{\beta}{L}\rceil}_{sur B}$  
 On a donc finalement : $Q(n,L,Z) \approx \frac{n}{\alpha} \times \frac{n}{\beta} \times \frac{3 \alpha\beta}{L} = \Theta(\frac{n^2}{L})$ qui est bien l'optimal que l'on avait trouvé (quand $Z = \infty$)
 On peut aussi en déduire que $\alpha = \beta \approx \sqrt{\frac{Z}{3}}$, avec $\alpha = \beta \leq \sqrt{\frac{Z}{3}}$  
+On peut alors construire un algorithme cache-aware qui va effectuer les calculs par blocs (boucle *for* sur les blocs). On peut alors créer [*Algorithm 5* en annexe](#algorithm5)
 
-\begin{algorithm}[H]
-\caption{Example 1 - Cache-Aware}
-\begin{algorithmic}[2]
-\Require{$A$ and $B$ two matrix of size $n \times n$} 
-\Ensure{$C$ a matrix of size $n \times n$}
-\Statex
- 
-  \For{$I=0; I<n; I+=\alpha$}
-    \State int $i_{max} \gets \min(I+\alpha, m)$
-    \For{$J=0; J<n; J+=\alpha$}
-      \State int $j_{max} \gets \min(J+\alpha, m)$
-      \For{$i=I; i<i_{max}; i++$}
-        \For{$j=J; j<j_{max}; j++$}
-        \State $c_{i,j} \gets a_{i,j} \times b_{j,i}$
-        \EndFor
-      \EndFor
-    \EndFor
-  \EndFor
-\end{algorithmic}
-\end{algorithm}
+&nbsp;  
 
 On a trouvé un algorithme qui, asymptotiquement, est toujours optimal, mais celui-ci dépend de Z et de L, et donc un seul et même algorithme ne peux pas etre optimal sur toutes les machines puisque Z et L seront différents.
 La prochaine étape est alors de créer un algorithme cache-oblivious.  
-**Méthode générale :**  
-Découper récursivement en blocs plus petits jusqu'à ce que les sous-problèmes rentrent dans le cache.  
+**Méthode générale : cache-oblivious**  
+On va effectuer du blocking récursif, c'est-à-dire découper récursivement en blocs plus petits jusqu'à ce que la résolution d'un sous-problème tient dans le cache.  
+**Application :**
+[*Algorithm 6* en annexe](#algorithm6)  
 
-\begin{algorithm}[H]
-\caption{Example 1 - Cache-Oblivious}
-\begin{algorithmic}[3]
-\Require{$A$ and $B$ two matrix of size $n \times n$, $T$ a threshold, $a$, $b$ two indexes initially = 0, $c$, $d$ two indexes initially = $n$} 
-\Ensure{$C$ a matrix of size $n \times n$}
-\Statex
-\Function{$f_{rec}$}{$a,b,c,d$}
-  \State $NbLine \gets b-a$
-  \State $NbCol \gets d-c$
-  \If {$NbLine < T$ and $NbCol < T$}
-    \For{$i=a; i<b; i++$}
-      \For{$j=c; j<d; j++$}
-        \State $c_{i,j} \gets a_{i,j} \times b_{j,i}$
-      \EndFor
-    \EndFor
-  \Else
-    \If { $NbLine > NbCol$}
-      \State $f_{rec}(a+NbLine/2, b, c, d)$
-      \State $f_{rec}(a, b+NbLine/2, c, d)$
-    \Else
-      \State $f_{rec}(a, b, c+NbCol/2, d)$
-      \State $f_{rec}(a, b, c, d+NbCol/2)$
-    \EndIf
-  \EndIf
-\EndFunction
-\end{algorithmic}
-\end{algorithm}
-
-
-
+&nbsp;  
 &nbsp;  
 
 # Cas des algorithmes récursifs
 
 
-La programmation récursive peut amener à des **calculs redondants** qui les rendent très très mauvais niveau performance. Il est alors possible d'éliminer les redondances en suivant la méthode suivante:  
+La programmation récursive peut amener à des **calculs redondants** qui les rendent très mauvais niveau performance. Il est alors possible d'éliminer les redondances en suivant la méthode suivante:  
 
 * Trouver les calculs redondants en analysant les dépendances entre instructions avec un graphe d'appel par exemple.  
 * Éliminer ces calculs grâce à :
-  * Soit de la mémoïsation, c'est-à-dire mémoriser le résultat d'un appel pour pouvoir s'en servir plus tard si on a encore besoin du résultat.
-  * Soit passer à de la programmation itérative avec ordonnancement topologique.  
+  * Soit de la mémoïsation, c'est-à-dire mémoriser le résultat d'un appel pour pouvoir s'en servir plus tard si on a encore besoin du résultat. Pour cela, on utilise généralement des tables de hash ou des tableaux.
+  * Soit passer à de la programmation itérative avec ordonnancement topologique, c'est-à-dire effectuer les calculs nécéssaires dans un sens tel que l'on ait déjà effectué (et mémorisé) les valeurs intermédiaires nécéssaires à chaque calcul avant de le faire.  
   
 *Exemple 2 :*
 Soit la fonction $f$ définie ci-dessous
@@ -155,7 +116,6 @@ Soit la fonction $f$ définie ci-dessous
 \Require{int $x$} 
 \Ensure{$res$ the result}
 \Function{$f$}{$x$}
-  \Statex
     \If{ $x = 0$}
       \State Return 1
     \EndIf
@@ -222,7 +182,7 @@ On obtient alors l'algorithme suivant :
 \end{algorithmic}
 \end{algorithm}
 
-On a appliqué simplement la méthode, il est évident que dans notre cas, l'algorithme peut encore être simplifié, mais pas au niveau de la redondance des calculs de $f(i)$. En effet, chaque $f(i)$ est calculé une et une seule fois.  
+On a appliqué simplement la méthode, il est évident que dans notre cas, l'algorithme peut encore être simplifié, mais pas au niveau de la redondance des calculs de $f(i)$ puisque, chaque $f(i)$ n'est calculé qu'une et une seule fois.  
 
 &nbsp;  
 &nbsp;  
@@ -258,14 +218,69 @@ $h_{max}(L_{base}, l_{base}) = 0$  si aucune brique ne respecte les conditions d
 
 &nbsp;  
 
-On peut alors creer le code fournis en annexe 1.  
+On peut alors créer le [*code fournis en annexe*](#exemple3).  
 
 
 
 
 
-# Annexe 1
+# Annexes
 
+#### {#algorithm5}  
+
+\begin{algorithm}[H]
+\caption{Example 1 - Cache-Aware}
+\begin{algorithmic}[2]
+\Require{$A$ and $B$ two matrix of size $n \times n$} 
+\Ensure{$C$ a matrix of size $n \times n$}
+\Statex
+ 
+  \For{$I=0; I<n; I+=\alpha$}
+    \State int $i_{max} \gets \min(I+\alpha, m)$
+    \For{$J=0; J<n; J+=\alpha$}
+      \State int $j_{max} \gets \min(J+\alpha, m)$
+      \For{$i=I; i<i_{max}; i++$}
+        \For{$j=J; j<j_{max}; j++$}
+        \State $c_{i,j} \gets a_{i,j} \times b_{j,i}$
+        \EndFor
+      \EndFor
+    \EndFor
+  \EndFor
+\end{algorithmic}
+\end{algorithm}
+
+#### {#algorithm6}
+
+\begin{algorithm}[H]
+\caption{Example 1 - Cache-Oblivious}
+\begin{algorithmic}[3]
+\Require{$A$ and $B$ two matrix of size $n \times n$, $T$ a threshold, $a$, $b$ two indexes initially = 0, $c$, $d$ two indexes initially = $n$} 
+\Ensure{$C$ a matrix of size $n \times n$}
+\Statex
+\Function{$f_{rec}$}{$a,b,c,d$}
+  \State $NbLine \gets b-a$
+  \State $NbCol \gets d-c$
+  \If {$NbLine < T$ and $NbCol < T$}
+    \For{$i=a; i<b; i++$}
+      \For{$j=c; j<d; j++$}
+        \State $c_{i,j} \gets a_{i,j} \times b_{j,i}$
+      \EndFor
+    \EndFor
+  \Else
+    \If { $NbLine > NbCol$}
+      \State $f_{rec}(a+NbLine/2, b, c, d)$
+      \State $f_{rec}(a, b+NbLine/2, c, d)$
+    \Else
+      \State $f_{rec}(a, b, c+NbCol/2, d)$
+      \State $f_{rec}(a, b, c, d+NbCol/2)$
+    \EndIf
+  \EndIf
+\EndFunction
+\end{algorithmic}
+\end{algorithm}
+
+#### Exemple 3 : Algorithme
+#### {#exemple3}
 \lstinputlisting[language=Python]{exemple3.py}
 
 
