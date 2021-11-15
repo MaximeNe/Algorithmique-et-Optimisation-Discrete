@@ -128,7 +128,7 @@
 \makeatother
 \subtitle{DM 4MMAOD6 2021-2022}
 \author{Maxime NEMO}
-\date{08 novembre 2021}
+\date{15 novembre 2021}
 
 
 
@@ -241,7 +241,7 @@
 \usepackage{titling}
 \title{Algorithmique et optimisation discrète}
 \author{Maxime NEMO}
-\date{08 novembre 2021}
+\date{15 novembre 2021}
 
 %
 % tables
@@ -268,9 +268,9 @@
 
 \newpairofpagestyles{eisvogel-header-footer}{
   \clearpairofpagestyles
-  \ihead[08 novembre 2021]{Algorithmique et optimisation discrète}
+  \ihead[15 novembre 2021]{Algorithmique et optimisation discrète}
   \chead[]{}
-  \ohead[Algorithmique et optimisation discrète]{08 novembre 2021}
+  \ohead[Algorithmique et optimisation discrète]{15 novembre 2021}
   \ifoot[\thepage]{Maxime NEMO}
   \cfoot[]{}
   \ofoot[Maxime NEMO]{\thepage}
@@ -311,7 +311,7 @@ discrète}}}
 }
 
 
-\textsf{08 novembre 2021}
+\textsf{15 novembre 2021}
 \end{flushleft}
 \end{titlepage}
 \restoregeometry
@@ -327,6 +327,12 @@ discrète}}}
 \tableofcontents
 \newpage
 }
+\hypertarget{pruxe9ambule}{%
+\paragraph{Préambule}\label{pruxe9ambule}}
+
+Je certifie que ce travail est le fruit de mon travail personnel
+exclusivement
+
 \hypertarget{analyse-des-duxe9fauts-de-cache}{%
 \section{Analyse des défauts de
 cache}\label{analyse-des-duxe9fauts-de-cache}}
@@ -449,9 +455,6 @@ récursivement en blocs plus petits jusqu'à ce que la résolution d'un
 sous-problème tient dans le cache.\\
 \textbf{Application :} \protect\hyperlink{algorithm6}{\emph{Algorithm 6}
 en annexe}
-
-~\\
-\hspace*{0.333em}
 
 \hypertarget{cas-des-algorithmes-ruxe9cursifs}{%
 \section{Cas des algorithmes
@@ -618,10 +621,37 @@ Si il existe une brique compatible :\\
 \(h_{max}(L_{base}, l_{base}) = 0\) si aucune brique ne respecte les
 conditions du max
 
-~
-
 On peut alors créer le \protect\hyperlink{exemple3}{\emph{code fournis
 en annexe}}.
+
+~
+
+Une autre méthode pour gérer les probèmes d'optimisation est de faire du
+\textbf{Branch \& Bound}, qui est utilie lorsqu'on a un problème de
+minimisation ou de maximisation. Cette technique est divisée en 2
+parties.
+
+\begin{itemize}
+\tightlist
+\item
+  La \emph{séparation}, qui conciste à diviser le problème initial en
+  sous problèmes. L'ensemble des potientielles solutions des sous
+  problèmes doit recouvir l'ensemble des potentielles solutions du
+  problème initial. On va résoudre ces sous problèmes grâce à
+  l'évalutation. On pourra, si besoin, séparer encore les sous problèmes
+  en sous sous problèmes etc\ldots{}
+\item
+  L'\emph{évaluation} conciste à résoudre un des problèmes. On peut le
+  résoudre de deux façons. Soit on trouve une solution optimale au
+  problème considéré en regardant les solutions du problème ou en
+  utilisant les sous solutions des sous problèmes. Soit on prouve qu'il
+  n'existe pas de solution optimale (meilleure que celle qu'on pourrait
+  déjà avoir éventuellement trouvé précédement), et donc il est inutile
+  d'explorer ce problème et ses sous problèmes.
+\end{itemize}
+
+Je comprends la notion de Branch \& Bound mais je ne la maitrise pas
+assez pour pouvoir créer un exemple et l'appliquer correctement dessus.
 
 \hypertarget{annexes}{%
 \section{Annexes}\label{annexes}}
